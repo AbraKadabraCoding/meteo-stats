@@ -1,65 +1,136 @@
 <template>
-  <div class="grid-dashboard">
-    <apexchart class="apexchart" type="line" :options="options" :series="series"></apexchart>
+  <div class="app">
+    <!-- Navbar -->
+    <nav class="navbar">
+      <h1>Meteo Stats dashboard</h1>
+    </nav>
 
-    <apexchart class="apexchart" type="bar" :options="options" :series="series"></apexchart>
-    <apexchart
-      class="apexchart"
-      type="bar"
-      :options="options"
-      :series="series"
-      style="grid-column: span 2"
-    ></apexchart>
-    <apexchart class="apexchart" type="bar" :options="options" :series="series"></apexchart>
-    <apexchart class="apexchart" type="bar" :options="options" :series="series"></apexchart>
-    <apexchart class="apexchart" type="bar" :options="options" :series="series"></apexchart>
+    <!-- Conteúdo -->
+    <div class="content">
+      <div class="grid-dashboard">
+        <lineChart :chartOptions="options" :series="series"></lineChart>
+      </div>
+      <div class="map-wrapper">
+        <MapLibreMap @onNewMarkerCreated="onNewMarkerCreated" />
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
+import MapLibreMap from '@/components/map/mapComponent.vue'
+import lineChart from '@/components/charts/lineChart.vue'
+import { fetchMaxMinTemperature } from '@/services/temperature.js'
+
 export default {
+  name: 'HomeView',
+  components: {
+    MapLibreMap,
+    lineChart,
+  },
+  methods: {
+    onNewMarkerCreated(marker) {
+      this.locationCoords = marker
+    },
+    getTemperatureMinMax() {
+      const today = new Date().toISOString().split('T')[0]
+      const tenDaysAgo = new Date(new Date().setDate(new Date().getDate() - 10))
+        .toISOString()
+        .split('T')[0]
+      fetchMaxMinTemperature(this.locationCoords, tenDaysAgo, today).then((data) => {
+        this.series = [
+          {
+            type: 'line',
+            name: 'Máxima',
+            data: data.tempMax,
+          },
+          {
+            type: 'line',
+            name: 'Minima',
+            data: data.tempMin,
+          },
+        ]
+        this.options.xaxis.categories = data.time
+      })
+    },
+  },
   data() {
     return {
+      locationCoords: null,
       options: {
+        title: {
+          text: 'Temperatura minima e máxima',
+        },
         chart: {
           id: 'vuechart-example',
         },
         xaxis: {
-          categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'],
+          categories: [],
         },
       },
       series: [
         {
-          name: 'Series 1',
-          data: [30, 40, 35, 50, 49, 60, 70, 91, 125],
+          name: '',
+          data: [],
         },
       ],
     }
   },
+  watch: {
+    locationCoords() {
+      this.getTemperatureMinMax()
+    },
+  },
 }
 </script>
 <style scoped>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+html,
+body,
+.app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #2c3e50;
+  color: white;
+  padding: 10px 20px;
+  height: 60px;
+  flex-shrink: 0;
+}
+.navbar h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+.map-wrapper {
+  flex: 1;
+  overflow: hidden;
+}
 .grid-dashboard {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 2fr));
   grid-auto-rows: 3fr;
   gap: 20px;
-  width: 100%;
-  padding: 10px;
+  flex: 1;
   background-color: #f4f4f4;
   box-sizing: border-box;
   overflow: hidden;
+  height: 100%;
 }
 
-/* Estilização dos gráficos dentro da grid */
-.apexchart {
-  background: white;
-  border-radius: 10px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+.content {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  height: 30px;
+  flex: 1;
+  gap: 10px;
+  height: calc(100vh - 100px);
 }
 </style>
